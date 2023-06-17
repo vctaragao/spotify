@@ -1,4 +1,6 @@
-# Spotify Architeture - My Simplified Implementation
+![spotfy-cropped](https://github.com/vctaragao/spotify/assets/26884793/2a16123e-ef02-4911-be45-91d0a29759d7)
+
+# Spotify Architeture - My Simplified Implementation 
 
 ## Limitations
 
@@ -14,9 +16,9 @@
 - There will be no priority in the peer to peer conection, for now, it will just follow the First Come First Serve.
 - Not NAT Traversal workaround
 
-![image](https://github.com/vctaragao/spotify/assets/26884793/adeb54ef-bcb3-4ca3-96f6-dde028040411)
+## Architeture
 
-## Architeture Entities Responsabilities and Behaviours
+![image](https://github.com/vctaragao/spotify/assets/26884793/adeb54ef-bcb3-4ca3-96f6-dde028040411)
 
 - **********************Main Server**********************
     - Holds the original music files
