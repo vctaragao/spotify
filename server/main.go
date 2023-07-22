@@ -5,7 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bobertlo/go-mpg123/mpg123"
 	"github.com/gofiber/fiber/v2"
+)
+
+const (
+	SAMPLE_RATE = 44100
+	SECONDS     = 15
 )
 
 type (
@@ -13,18 +19,20 @@ type (
 
 	TrackInfo struct {
 		Format string `json:"format"`
-		Length int    `json:"length"`
+		Length int64  `json:"length"`
 	}
 
 	Tracks map[Track]TrackInfo
 
 	Params struct {
 		File    Track `query:"file"`
-		StartAt int   `query:"start_at"`
+		StartAt int64 `query:"start_at"`
 	}
 
 	Output struct {
-		TrackData []byte `json:"track_data"`
+		TrackData   []byte `json:"track_data"`
+		TrackLength int64  `json:"track_length"`
+		Next        int64  `json:"next"`
 	}
 )
 
@@ -61,38 +69,41 @@ func main() {
 			})
 		}
 
-		f, err := os.Open(fmt.Sprintf("./tracks/%s.%s", params.File, trackInfo.Format))
-		if err != nil {
-			panic(err)
+		decoder, err := mpg123.NewDecoder("")
+		chk(err)
+
+		chk(decoder.Open(fmt.Sprintf("./tracks/%s.%s", params.File, trackInfo.Format)))
+		defer decoder.Close()
+
+		// get audio format information
+		rate, channels, _ := decoder.GetFormat()
+
+		// make sure output format does not change
+		decoder.FormatNone()
+		decoder.Format(rate, channels, mpg123.ENC_SIGNED_16)
+
+		fifhteenSeconds := make([]byte, SECONDS*rate)
+		n, err := decoder.Read(fifhteenSeconds)
+		if err == mpg123.EOF {
+			return c.Status(200).JSON(Output{
+				TrackData: make([]byte, 0),
+			})
 		}
-		defer f.Close()
+		chk(err)
 
-		bytePerSecond := getTrackBytePerSecond(f, trackInfo)
-
-		fmt.Println(params.StartAt)
-		if _, err = f.Seek(bytePerSecond*int64(params.StartAt), 0); err != nil {
-			panic(err)
-		}
-
-		fifhteenSeconds := make([]byte, 15*bytePerSecond)
-		b, err := f.Read(fifhteenSeconds)
-		if err != nil {
-			panic(err)
-		}
-
+		c.Set("Content-Type", "audio/mpeg")
 		return c.Status(200).JSON(Output{
-			TrackData: fifhteenSeconds[:b],
+			TrackData:   fifhteenSeconds[:n],
+			TrackLength: trackInfo.Length,
+			Next:        params.StartAt + SECONDS,
 		})
 	})
 
 	app.Listen(":3000")
 }
 
-func getTrackBytePerSecond(f *os.File, trackInfo TrackInfo) int64 {
-	stat, err := f.Stat()
+func chk(err error) {
 	if err != nil {
 		panic(err)
 	}
-
-	return stat.Size() / int64(trackInfo.Length)
 }
